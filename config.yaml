@@ -1,0 +1,31 @@
+# rsi-revert configuration.
+# Copy or edit in place. Sensitive values (API keys) come from env vars,
+# never from this file.
+
+universe:
+  - SPY                       # trade target(s); SPY is also the regime ticker
+
+strategy:
+  variant: B                  # A (RSI14, 30/70) or B (RSI2, Connors)
+
+backtest:
+  initial_equity: 100000      # starting cash in USD
+  risk_per_trade: 0.01        # 1% of equity at risk per trade
+  slippage_bps: 5.0           # 5 bps = 0.05% slippage per fill (each side)
+  commission_per_share: 0.0   # Alpaca is commission-free for stocks
+  history_start: "2005-01-01" # backtest start; rest is "to today"
+
+walk_forward:
+  train_years: 4
+  test_years: 1
+  step_years: 1               # non-overlapping test windows
+
+live:
+  data_lookback_days: 365     # days of history fetched daily for signals
+  data_feed: iex              # iex (free) or sip (paid)
+
+runtime:
+  paper: true                 # true for paper trading; live mode requires extra opt-in
+  log_level: INFO             # DEBUG / INFO / WARNING / ERROR
+  log_dir: logs
+  cache_dir: data/cache

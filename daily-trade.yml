@@ -1,0 +1,60 @@
+name: Daily Paper Trade
+
+# IMPORTANT: cron schedule is commented out by default. The dry-run
+# workflow (daily-dryrun.yml) runs on the schedule instead. Once you've
+# monitored dry-run reports and trust the system, uncomment the cron line
+# below AND disable the daily-dryrun workflow to start actual paper trading.
+
+on:
+  # Uncomment the schedule below to start automated paper trading.
+  # schedule:
+  #   - cron: "5 21 * * 1-5"
+  workflow_dispatch:
+
+# Prevent overlapping runs from racing on the data cache commit.
+concurrency:
+  group: daily-trade
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Restore data cache
+        uses: actions/cache@v4
+        with:
+          path: data/cache
+          key: market-data-${{ runner.os }}-daily-${{ github.run_id }}
+          restore-keys: |
+            market-data-${{ runner.os }}-daily-
+            market-data-${{ runner.os }}-
+
+      - name: Run daily trade
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
+          KILL_SWITCH: ${{ vars.KILL_SWITCH || 'false' }}
+        run: python scripts/run_daily.py --config config/config.yaml
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-trade-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 30
