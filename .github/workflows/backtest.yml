@@ -1,0 +1,50 @@
+name: Backtest
+
+# Manual-only. Runs the full backtest + walk-forward against real Alpaca
+# data and prints results to the workflow log. Use this to verify the
+# pipeline before enabling live trading.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Restore data cache
+        uses: actions/cache@v4
+        with:
+          path: data/cache
+          key: market-data-${{ runner.os }}-backtest-${{ github.run_id }}
+          restore-keys: |
+            market-data-${{ runner.os }}-backtest-
+            market-data-${{ runner.os }}-
+
+      - name: Run backtest
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
+        run: python scripts/run_backtest.py --config config/config.yaml
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-reports-${{ github.run_id }}
+          path: reports/
+          retention-days: 90
